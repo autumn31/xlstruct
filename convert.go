@@ -64,7 +64,7 @@ func newUnmarshaler(v interface{}, headers []*xlsx.Cell) (*unmarshaler, error) {
 	}, nil
 }
 
-// Unmarshal supports only struct pointer type
+// Unmarshal supports only struct pointer type, schidx the idx of header row
 func Unmarshal(v interface{}, sheet *xlsx.Sheet, schidx int) error {
 	h := sheet.Rows[schidx]
 	um, err := newUnmarshaler(v, h.Cells)
