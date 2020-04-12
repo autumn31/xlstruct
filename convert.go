@@ -65,7 +65,7 @@ func newUnmarshaler(v interface{}, headers []*xlsx.Cell) (*unmarshaler, error) {
 }
 
 // Unmarshal supports only struct pointer type, schidx the idx of header row
-func Unmarshal(v interface{}, sheet *xlsx.Sheet, schidx int) error {
+func Unmarshal(v interface{}, sheet *xlsx.Sheet, schidx int, cpt bool) error {
 	h := sheet.Rows[schidx]
 	um, err := newUnmarshaler(v, h.Cells)
 	if err != nil {
@@ -88,10 +88,13 @@ Loop:
 		for k, idx := range um.idxm {
 			field := n.FieldByName(k)
 			cell := row.Cells[idx]
-			val, err := getValue(um.typm[k], cell)
+			val, err := getValue(um.typm[k], cell, cpt)
 			if err != nil {
 				log.Printf("bad value(%v) for field(%v) as type(%s)\n", cell.Value, k, field.Type())
-				continue Loop
+				if !cpt {
+					continue Loop
+				}
+
 			}
 			field.Set(val)
 		}
@@ -104,7 +107,7 @@ Loop:
 	return nil
 }
 
-func getValue(typ reflect.Type, cell *xlsx.Cell) (reflect.Value, error) {
+func getValue(typ reflect.Type, cell *xlsx.Cell, cpt bool) (reflect.Value, error) {
 	var v interface{}
 	var err error
 	switch typ.Kind() {
@@ -118,7 +121,17 @@ func getValue(typ reflect.Type, cell *xlsx.Cell) (reflect.Value, error) {
 		v = cell.String()
 	}
 	if err != nil {
-		return reflect.Value{}, err
+		if cpt {
+			switch typ.Kind() {
+			case reflect.Int:
+				v = int(0)
+			case reflect.Int64:
+				v = int64(0)
+			case reflect.Float64:
+				v = float64(0)
+			}
+		}
+		return reflect.ValueOf(v), err
 	}
 	return reflect.ValueOf(v), nil
 }
