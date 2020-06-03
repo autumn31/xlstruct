@@ -23,7 +23,7 @@ type unmarshaler struct {
 	typm     map[string]reflect.Type
 }
 
-func newUnmarshaler(v interface{}, headers []*xlsx.Cell) (*unmarshaler, error) {
+func newUnmarshaler(v interface{}, headers []*xlsx.Cell, tag string) (*unmarshaler, error) {
 	schema := map[string]int{}
 	for i, cell := range headers {
 		if cell.Value == "" {
@@ -53,7 +53,7 @@ func newUnmarshaler(v interface{}, headers []*xlsx.Cell) (*unmarshaler, error) {
 	}
 
 	// get FieldName => row[i] mapping
-	idxm, typm := getFieldCellMaps(t, schema)
+	idxm, typm := getFieldCellMaps(t, schema, tag)
 	return &unmarshaler{
 		isPtr:    isPtr,
 		typ:      t,
@@ -65,9 +65,12 @@ func newUnmarshaler(v interface{}, headers []*xlsx.Cell) (*unmarshaler, error) {
 }
 
 // Unmarshal supports only struct pointer type, schidx the idx of header row
-func Unmarshal(v interface{}, sheet *xlsx.Sheet, schidx int, cpt bool) error {
+func Unmarshal(v interface{}, sheet *xlsx.Sheet, schidx int, cpt bool, tag string) error {
 	h := sheet.Rows[schidx]
-	um, err := newUnmarshaler(v, h.Cells)
+	if tag == "" {
+		tag = "excel"
+	}
+	um, err := newUnmarshaler(v, h.Cells, tag)
 	if err != nil {
 		return err
 	}
@@ -136,13 +139,13 @@ func getValue(typ reflect.Type, cell *xlsx.Cell, cpt bool) (reflect.Value, error
 	return reflect.ValueOf(v), nil
 }
 
-func getFieldCellMaps(t reflect.Type, sch map[string]int) (map[string]int, map[string]reflect.Type) {
+func getFieldCellMaps(t reflect.Type, sch map[string]int, tag string) (map[string]int, map[string]reflect.Type) {
 	idxm := map[string]int{}
 	typm := map[string]reflect.Type{}
 	for i := 0; i < t.NumField(); i++ {
 		// skip the fields that don't have excel tag
 		field := t.Field(i)
-		tag := field.Tag.Get("excel")
+		tag := field.Tag.Get(tag)
 		if tag == "" {
 			continue
 		}
